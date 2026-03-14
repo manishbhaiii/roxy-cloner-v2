@@ -206,7 +206,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
         }
     }
 
-    await sendLog("🗑️ Starting deletion process...");
+    await sendLog("Starting deletion process...");
 
     if (opts[1]) {
         const channels = targetGuild.channels.cache.filter(ch => ch.deletable);
@@ -246,7 +246,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
         }
     }
 
-    await sendLog("✅ Cleanup complete. Starting cloning...");
+    await sendLog("Cleanup complete. Starting cloning...");
 
     const roleMapping = new Map();
 
@@ -380,7 +380,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
         }
     }
 
-    await message.author.send("🎉 Cloning completed successfully!");
+    await message.author.send("Cloning completed successfully!");
 }
 
 bot.login(BOT_TOKEN).catch(() => console.error("Invalid Bot Token"));
