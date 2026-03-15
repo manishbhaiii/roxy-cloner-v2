@@ -329,7 +329,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
                 const parentId = channel.parentId ? categoryMapping.get(channel.parentId) : null;
                 await targetGuild.channels.create({
                     name: channel.name,
-                    type: 0, 
+                    type: 0,
                     parent: parentId,
                     topic: channel.topic || '',
                     nsfw: channel.nsfw || false,
@@ -389,10 +389,17 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
         } else {
             for (const emoji of emojisToClone) {
                 try {
-                    await targetGuild.emojis.create({ attachment: emoji.url, name: emoji.name });
+                    const createPromise = targetGuild.emojis.create({ attachment: emoji.url, name: emoji.name });
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('RATE_LIMIT_HANG')), 15000));
+
+                    await Promise.race([createPromise, timeoutPromise]);
                     await sendLog(`Created Emoji: ${emoji.name}`);
                     await delay(1500);
                 } catch (e) {
+                    if (e.message === 'RATE_LIMIT_HANG' || e.code === 429) {
+                        await sendLog("⚠️ Emoji upload limit hit (Discord Rate Limit)! I can't clone any more emojis. Skipping the rest...");
+                        break;
+                    }
                     if (e.code === 30014 || String(e).includes('Maximum number of emojis reached')) {
                         await sendLog("⚠️ Maximum emoji slots reached! Skipping remaining emojis...");
                         break;
@@ -403,7 +410,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
         }
     }
 
-    await message.author.send("🎉 Cloning completed successfully!");
+    await message.author.send("Cloning completed successfully!");
 }
 
 bot.login(BOT_TOKEN).catch(() => console.error("Invalid Bot Token"));
