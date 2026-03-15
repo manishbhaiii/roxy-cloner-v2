@@ -275,24 +275,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
                 await sendLog(`Created Role: ${role.name}`);
                 await delay(1500);
             } catch (e) {
-                console.error(e);
-            }
-        }
-    }
-
-    if (opts[6]) {
-        const emojis = Array.from(sourceGuild.emojis.cache.values());
-        for (const emoji of emojis) {
-            try {
-                await targetGuild.emojis.create({ attachment: emoji.url, name: emoji.name });
-                await sendLog(`Created Emoji: ${emoji.name}`);
-                await delay(1500);
-            } catch (e) {
-                if (e.code === 30014 || String(e).includes('Maximum number of emojis reached')) {
-                    await sendLog("⚠️ Maximum emoji slots reached! Skipping remaining emojis...");
-                    break;
-                }
-                console.error(e);
+                await sendLog(`⚠️ Failed to create role: ${role.name}`);
             }
         }
     }
@@ -333,7 +316,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
                 await sendLog(`Created Category: ${category.name}`);
                 await delay(1500);
             } catch (e) {
-                console.error(e);
+                await sendLog(`⚠️ Failed to create category: ${category.name}`);
             }
         }
 
@@ -346,7 +329,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
                 const parentId = channel.parentId ? categoryMapping.get(channel.parentId) : null;
                 await targetGuild.channels.create({
                     name: channel.name,
-                    type: channel.type === 'GUILD_NEWS' || channel.type === 5 ? 5 : 0,
+                    type: 0, 
                     parent: parentId,
                     topic: channel.topic || '',
                     nsfw: channel.nsfw || false,
@@ -356,7 +339,7 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
                 await sendLog(`Created Text Channel: ${channel.name}`);
                 await delay(1500);
             } catch (e) {
-                console.error(e);
+                await sendLog(`⚠️ Failed to create text channel: ${channel.name}`);
             }
         }
 
@@ -379,12 +362,48 @@ async function startCloningProcess(message, sourceGuild, targetGuild, opts) {
                 await sendLog(`Created Voice Channel: ${channel.name}`);
                 await delay(1500);
             } catch (e) {
-                console.error(e);
+                await sendLog(`⚠️ Failed to create voice channel: ${channel.name}`);
             }
         }
     }
 
-    await message.author.send("Cloning completed successfully!");
+    if (opts[6]) {
+        let maxEmojis = 50;
+        if (targetGuild.premiumTier === 1) maxEmojis = 100;
+        else if (targetGuild.premiumTier === 2) maxEmojis = 150;
+        else if (targetGuild.premiumTier === 3) maxEmojis = 250;
+
+        const currentStatic = targetGuild.emojis.cache.filter(e => !e.animated).size;
+        const currentAnimated = targetGuild.emojis.cache.filter(e => e.animated).size;
+
+        const availableStatic = Math.max(0, maxEmojis - currentStatic);
+        const availableAnimated = Math.max(0, maxEmojis - currentAnimated);
+
+        const sourceStatic = Array.from(sourceGuild.emojis.cache.filter(e => !e.animated).values()).slice(0, availableStatic);
+        const sourceAnimated = Array.from(sourceGuild.emojis.cache.filter(e => e.animated).values()).slice(0, availableAnimated);
+
+        const emojisToClone = [...sourceStatic, ...sourceAnimated];
+
+        if (emojisToClone.length === 0) {
+            await sendLog("⚠️ No available emoji slots in target server. Skipping emoji cloning.");
+        } else {
+            for (const emoji of emojisToClone) {
+                try {
+                    await targetGuild.emojis.create({ attachment: emoji.url, name: emoji.name });
+                    await sendLog(`Created Emoji: ${emoji.name}`);
+                    await delay(1500);
+                } catch (e) {
+                    if (e.code === 30014 || String(e).includes('Maximum number of emojis reached')) {
+                        await sendLog("⚠️ Maximum emoji slots reached! Skipping remaining emojis...");
+                        break;
+                    }
+                    await sendLog(`⚠️ Failed to copy emoji: ${emoji.name}`);
+                }
+            }
+        }
+    }
+
+    await message.author.send("🎉 Cloning completed successfully!");
 }
 
 bot.login(BOT_TOKEN).catch(() => console.error("Invalid Bot Token"));
